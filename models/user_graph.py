@@ -39,32 +39,30 @@ class CoachingGraph(object):
     '''
 
 
-    def __init__(self, params):
+    def __init__(self):
         self.users = {}
         self.coaches = defaultdict(set)
         self.is_coached_by = defaultdict(set)
             
     def addUser(self, newUser):
         if newUser.UUID in self.users.keys():
-            raise DuplicateUser(newUser.UUID)
+            raise GraphViolation('User with ID {} already exists.'.format(newUser.UUID))
         self.users[newUser.UUID] = newUser
         
     def addCoachingRelationship(self, coachID, coacheeID):
         for ID in [coachID, coacheeID]:
             if ID not in self.users.keys():
-                raise NonexistentUser(ID)
+                raise GraphViolation('User with ID {} does not exist.'.format(ID))
+            
+        if coachID == coacheeID:
+            raise GraphViolation('Self-referential relationship')
+            
             
         self.coaches[coachID].add(coacheeID)
         self.is_coached_by[coacheeID].add(coachID)
     
-class DuplicateUser(Exception):
+class GraphViolation(Exception):
     
-    def __init__(self, userID):
-        self.userID = userID
-        self.message = 'User with ID {} already exists.'.format(self.userID)
+    def __init__(self, message):
+        self.message = message
         
-class NonexistentUser(Exception):
-    
-    def __init__(self, userID):
-        self.userID = userID
-        self.message = 'User with ID {} does not exist.'.format(self.userID)
