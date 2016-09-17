@@ -262,13 +262,13 @@ class UserGraphTest(unittest.TestCase):
         self.testGraph.addCoachingRelationship(self.testUser7.UUID, self.testUser5.UUID)
         
         self.testGraph.virtualRootUser = User('R')
-#         print('R',self.testGraph.virtualRootUser.UUID)
         self.testGraph.users[self.testGraph.virtualRootUser.UUID] = self.testGraph.virtualRootUser
         self.testGraph.spanningIs_coached_by = {} #dict of coacheeID:coachID
         self.testGraph.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
         self.testGraph.getSpanningTree()
         
         self.assertEqual(len(self.testGraph.users.keys()), len(self.testGraph.spanningIs_coached_by.keys()) + 1)
+
         self.assertEqual(set(self.testGraph.users.keys()), set(self.testGraph.spanningIs_coached_by.keys()) | {self.testGraph.virtualRootUser.UUID})
         
         edgeSet = {
@@ -283,47 +283,83 @@ class UserGraphTest(unittest.TestCase):
 
         for coacheeID, coachID in self.testGraph.spanningIs_coached_by.items():
             self.assertIn((coachID, coacheeID), edgeSet)
-            
+             
         for coachID, coacheeID in edgeSet:
             self.assertIn((coacheeID, coachID), self.testGraph.spanningIs_coached_by.items())
-            
+              
         self.assertEqual(len(self.testGraph.users.keys()), len(self.testGraph.spanningIs_coached_by.keys()) + 1)
         self.assertEqual(set(self.testGraph.users.keys()), set(self.testGraph.spanningIs_coached_by.keys()) | {self.testGraph.virtualRootUser.UUID})
         
-#     def testGetSpanningTree_rootless_loop(self):
-#         '''
-#         graph with a loop and a branch off it
-#         '''
-#         self.testUser1 = User('I', 1.0)
-#         self.testUser2 = User('II', 1.0)
-#         self.testUser3 = User('III', 1.0)
-#         self.testUser4 = User('IV', 1.0)
-#         self.testUser5 = User('V', 1.0)
-#         self.testUser6 = User('VI', 1.0)
-#         self.testUser7 = User('VII', 1.0)
-#         self.testGraph.addUser(self.testUser1)
-#         self.testGraph.addUser(self.testUser2)
-#         self.testGraph.addUser(self.testUser3)
-#         self.testGraph.addUser(self.testUser4)
-#         self.testGraph.addUser(self.testUser5)
-#         self.testGraph.addUser(self.testUser6)
-#         self.testGraph.addUser(self.testUser7)
-#         self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser2.UUID)
-#         self.testGraph.addCoachingRelationship(self.testUser2.UUID, self.testUser3.UUID)
-#         self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser4.UUID)
-# #         self.testGraph.addCoachingRelationship(self.testUser2.UUID, self.testUser5.UUID)
-#         self.testGraph.addCoachingRelationship(self.testUser5.UUID, self.testUser6.UUID)
-#         self.testGraph.addCoachingRelationship(self.testUser6.UUID, self.testUser7.UUID)
-#         self.testGraph.addCoachingRelationship(self.testUser7.UUID, self.testUser5.UUID)
-#         
-#         self.testGraph.virtualRootUser = User('Virtual Root')
-#         self.testGraph.users[self.testGraph.virtualRootUser.UUID] = self.testGraph.virtualRootUser
-#         self.testGraph.spanningIs_coached_by = {} #dict of coacheeID:coachID
-#         self.testGraph.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
-#         self.testGraph.getSpanningTree()
-#         for coacheeID, coachID in self.testGraph.spanningIs_coached_by.items():
-#             print(self.testGraph.users[coachID].name, self.testGraph.users[coacheeID].name)
-        
+    def testGetSpanningTree_rootless_loop(self):
+        '''
+        graph with a loop and a branch off it
+        '''
+        self.testUser1 = User('I', 1.0)
+        self.testUser2 = User('II', 1.0)
+        self.testUser3 = User('III', 1.0)
+        self.testUser4 = User('IV', 1.0)
+        self.testUser5 = User('V', 1.0)
+        self.testUser6 = User('VI', 1.0)
+        self.testUser7 = User('VII', 1.0)
+        self.testGraph.addUser(self.testUser1)
+        self.testGraph.addUser(self.testUser2)
+        self.testGraph.addUser(self.testUser3)
+        self.testGraph.addUser(self.testUser4)
+        self.testGraph.addUser(self.testUser5)
+        self.testGraph.addUser(self.testUser6)
+        self.testGraph.addUser(self.testUser7)
+        self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser2.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser2.UUID, self.testUser3.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser4.UUID)
+ 
+        self.testGraph.addCoachingRelationship(self.testUser5.UUID, self.testUser6.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser6.UUID, self.testUser7.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser7.UUID, self.testUser5.UUID)
+          
+        self.testGraph.virtualRootUser = User('Virtual Root')
+        self.testGraph.users[self.testGraph.virtualRootUser.UUID] = self.testGraph.virtualRootUser
+        self.testGraph.spanningIs_coached_by = {} #dict of coacheeID:coachID
+        self.testGraph.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
+        self.testGraph.getSpanningTree()
+         
+        edgeSet = {
+            (self.testUser1.UUID, self.testUser2.UUID),
+            (self.testUser1.UUID, self.testUser4.UUID),
+            (self.testUser2.UUID, self.testUser3.UUID),
+            (self.testGraph.virtualRootUser.UUID, self.testUser1.UUID)
+        }
+         
+        optionalEdgeSet = {            
+            (self.testUser5.UUID, self.testUser6.UUID),
+            (self.testUser7.UUID, self.testUser5.UUID),
+            (self.testUser6.UUID, self.testUser7.UUID)
+        }
+         
+        optionalRootEdgeSet = {
+            (self.testGraph.virtualRootUser.UUID, self.testUser5.UUID),
+            (self.testGraph.virtualRootUser.UUID, self.testUser6.UUID),
+            (self.testGraph.virtualRootUser.UUID, self.testUser7.UUID)
+        }
+         
+        for coacheeID, coachID in self.testGraph.spanningIs_coached_by.items():
+            self.assertTrue(
+                (coachID, coacheeID) in edgeSet | optionalEdgeSet | optionalRootEdgeSet
+            )
+             
+        for coachID, coacheeID in edgeSet:
+            self.assertIn((coacheeID, coachID), self.testGraph.spanningIs_coached_by.items())
+             
+        c = 0
+        for coachID, coacheeID in optionalEdgeSet:
+            if not (coacheeID, coachID) in self.testGraph.spanningIs_coached_by.items(): c += 1
+        self.assertEqual(c, 1)
+ 
+        d = 0
+        for coachID, coacheeID in optionalRootEdgeSet:
+            if (coacheeID, coachID) in self.testGraph.spanningIs_coached_by.items(): d += 1
+        self.assertEqual(d, 1)
+             
+         
     def testSetSubtreeSizes(self):
         '''
         graph with a loop and a branch off it
@@ -396,14 +432,14 @@ class UserGraphTest(unittest.TestCase):
         self.testGraph.addCoachingRelationship(self.testUser5.UUID, self.testUser6.UUID)
         self.testGraph.addCoachingRelationship(self.testUser6.UUID, self.testUser7.UUID)
         self.testGraph.addCoachingRelationship(self.testUser7.UUID, self.testUser5.UUID)
-        
+         
         self.testGraph.virtualRootUser = User('R')
         self.testGraph.users[self.testGraph.virtualRootUser.UUID] = self.testGraph.virtualRootUser
         self.testGraph.spanningIs_coached_by = {} #dict of coacheeID:coachID
         self.testGraph.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
         self.testGraph.getSpanningTree()
         self.testGraph.setSubtreeSizes(self.testGraph.virtualRootUser.UUID)
-            
+             
         '''
         Test starts here
         '''
@@ -416,7 +452,7 @@ class UserGraphTest(unittest.TestCase):
             rootID == self.testUser4.UUID or 
             rootID == self.testUser7.UUID
             )
-        
+          
     def testInfectSubtree_size3(self):
         '''
         graph with a loop and a branch off it
@@ -442,16 +478,16 @@ class UserGraphTest(unittest.TestCase):
         self.testGraph.addCoachingRelationship(self.testUser5.UUID, self.testUser6.UUID)
         self.testGraph.addCoachingRelationship(self.testUser6.UUID, self.testUser7.UUID)
         self.testGraph.addCoachingRelationship(self.testUser7.UUID, self.testUser5.UUID)
-        
+         
         self.testGraph.virtualRootUser = User('R')
         self.testGraph.users[self.testGraph.virtualRootUser.UUID] = self.testGraph.virtualRootUser
         self.testGraph.spanningIs_coached_by = {} #dict of coacheeID:coachID
         self.testGraph.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
         self.testGraph.getSpanningTree()
         self.testGraph.setSubtreeSizes(self.testGraph.virtualRootUser.UUID)
-                
+                 
         self.testGraph.infectSubtree(1.1, self.testGraph.selectSubtree(3))
-        
+         
         self.assertEqual(self.testUser1.siteVersion, 1.0)
         self.assertEqual(self.testUser2.siteVersion, 1.0)
         self.assertEqual(self.testUser3.siteVersion, 1.0)
@@ -459,8 +495,128 @@ class UserGraphTest(unittest.TestCase):
         self.assertEqual(self.testUser5.siteVersion, 1.1)
         self.assertEqual(self.testUser6.siteVersion, 1.1)
         self.assertEqual(self.testUser7.siteVersion, 1.1)
+         
+    def testInfectSubtree_size4(self):
+        '''
+        graph with a loop and a branch off it
+        '''
+        self.testUser1 = User('I', 1.0)
+        self.testUser2 = User('II', 1.0)
+        self.testUser3 = User('III', 1.0)
+        self.testUser4 = User('IV', 1.0)
+        self.testUser5 = User('V', 1.0)
+        self.testUser6 = User('VI', 1.0)
+        self.testUser7 = User('VII', 1.0)
+        self.testGraph.addUser(self.testUser1)
+        self.testGraph.addUser(self.testUser2)
+        self.testGraph.addUser(self.testUser3)
+        self.testGraph.addUser(self.testUser4)
+        self.testGraph.addUser(self.testUser5)
+        self.testGraph.addUser(self.testUser6)
+        self.testGraph.addUser(self.testUser7)
+        self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser2.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser2.UUID, self.testUser3.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser4.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser2.UUID, self.testUser5.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser5.UUID, self.testUser6.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser6.UUID, self.testUser7.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser7.UUID, self.testUser5.UUID)
+         
+        self.testGraph.virtualRootUser = User('R')
+        self.testGraph.users[self.testGraph.virtualRootUser.UUID] = self.testGraph.virtualRootUser
+        self.testGraph.spanningIs_coached_by = {} #dict of coacheeID:coachID
+        self.testGraph.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
+        self.testGraph.getSpanningTree()
+        self.testGraph.setSubtreeSizes(self.testGraph.virtualRootUser.UUID)
+                 
+        self.testGraph.infectSubtree(1.1, self.testGraph.selectSubtree(4))
+         
+        self.assertEqual(self.testUser1.siteVersion, 1.0)
+        self.assertEqual(self.testUser2.siteVersion, 1.0)
+        self.assertEqual(self.testUser3.siteVersion, 1.0)
+        self.assertEqual(self.testUser4.siteVersion, 1.0)
+        self.assertEqual(self.testUser5.siteVersion, 1.1)
+        self.assertEqual(self.testUser6.siteVersion, 1.1)
+        self.assertEqual(self.testUser7.siteVersion, 1.1)
+         
+    def testInfectSubtree_size5(self):
+        '''
+        graph with a loop and a branch off it
+        '''
+        self.testUser1 = User('I', 1.0)
+        self.testUser2 = User('II', 1.0)
+        self.testUser3 = User('III', 1.0)
+        self.testUser4 = User('IV', 1.0)
+        self.testUser5 = User('V', 1.0)
+        self.testUser6 = User('VI', 1.0)
+        self.testUser7 = User('VII', 1.0)
+        self.testGraph.addUser(self.testUser1)
+        self.testGraph.addUser(self.testUser2)
+        self.testGraph.addUser(self.testUser3)
+        self.testGraph.addUser(self.testUser4)
+        self.testGraph.addUser(self.testUser5)
+        self.testGraph.addUser(self.testUser6)
+        self.testGraph.addUser(self.testUser7)
+        self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser2.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser2.UUID, self.testUser3.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser4.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser2.UUID, self.testUser5.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser5.UUID, self.testUser6.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser6.UUID, self.testUser7.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser7.UUID, self.testUser5.UUID)
+         
+        self.testGraph.virtualRootUser = User('R')
+        self.testGraph.users[self.testGraph.virtualRootUser.UUID] = self.testGraph.virtualRootUser
+        self.testGraph.spanningIs_coached_by = {} #dict of coacheeID:coachID
+        self.testGraph.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
+        self.testGraph.getSpanningTree()
+        self.testGraph.setSubtreeSizes(self.testGraph.virtualRootUser.UUID)
+                 
+        self.testGraph.infectSubtree(1.1, self.testGraph.selectSubtree(5))
+         
+        self.assertEqual(self.testUser1.siteVersion, 1.0)
+        self.assertEqual(self.testUser2.siteVersion, 1.1)
+        self.assertEqual(self.testUser3.siteVersion, 1.1)
+        self.assertEqual(self.testUser4.siteVersion, 1.0)
+        self.assertEqual(self.testUser5.siteVersion, 1.1)
+        self.assertEqual(self.testUser6.siteVersion, 1.1)
+        self.assertEqual(self.testUser7.siteVersion, 1.1)
+         
+    def testLimitedInfection(self):
+        '''
+        graph with a loop and a branch off it
+        '''
+        self.testUser1 = User('I', 1.0)
+        self.testUser2 = User('II', 1.0)
+        self.testUser3 = User('III', 1.0)
+        self.testUser4 = User('IV', 1.0)
+        self.testUser5 = User('V', 1.0)
+        self.testUser6 = User('VI', 1.0)
+        self.testUser7 = User('VII', 1.0)
+        self.testGraph.addUser(self.testUser1)
+        self.testGraph.addUser(self.testUser2)
+        self.testGraph.addUser(self.testUser3)
+        self.testGraph.addUser(self.testUser4)
+        self.testGraph.addUser(self.testUser5)
+        self.testGraph.addUser(self.testUser6)
+        self.testGraph.addUser(self.testUser7)
+        self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser2.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser2.UUID, self.testUser3.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser1.UUID, self.testUser4.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser2.UUID, self.testUser5.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser5.UUID, self.testUser6.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser6.UUID, self.testUser7.UUID)
+        self.testGraph.addCoachingRelationship(self.testUser7.UUID, self.testUser5.UUID)
         
-        
+        self.testGraph.limited_infection(1.1, 5)
+         
+        self.assertEqual(self.testUser1.siteVersion, 1.0)
+        self.assertEqual(self.testUser2.siteVersion, 1.1)
+        self.assertEqual(self.testUser3.siteVersion, 1.1)
+        self.assertEqual(self.testUser4.siteVersion, 1.0)
+        self.assertEqual(self.testUser5.siteVersion, 1.1)
+        self.assertEqual(self.testUser6.siteVersion, 1.1)
+        self.assertEqual(self.testUser7.siteVersion, 1.1)
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'UserGraphTest.testName']

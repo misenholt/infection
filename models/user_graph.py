@@ -84,6 +84,48 @@ class CoachingGraph(object):
                 processingQueue.put(userID)
         
 
+    def limited_infection(self, newVersionNumber, numberToInfect):
+        '''
+        This algorithm is based on the intuition that our graph will look a lot like a tree.
+        That is to say there will be relatively few users with more than one coach and even fewer cycles
+        Therefore I have foregone the more robust but heavier algorithms in favour of lighter options.
+        
+        The second intuition is that the best way to partition a connected component for infection in to select an entire
+        subtree of the spanning tree. A heavier option would be to use one of several graph partition algorithms. 
+        The reason I am considering these heavier is because we would have to optimize on two variables: 
+        both on 'niceness' of the partition and on deviation from desired size.
+        
+        Therefore the algorithm is as follows:
+        1. Create a spanning tree of each connected component
+        2. Join the roots of the trees to a virtual root to create a single spanning tree for the graph
+        3. Traverse the tree, assigning to each node the number of nodes in the subtree rooted at that node
+        4. Select the subtree whose size is nearest to the number of desired infections
+        5. Infect that subtree
+        '''
+        self.virtualRootUser = User('Virtual Root')
+        self.users[self.virtualRootUser.UUID] = self.virtualRootUser
+        self.spanningIs_coached_by = {} #dict of coacheeID:coachID
+        self.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
+        
+        self.getSpanningTree()
+        self.setSubtreeSizes(self.virtualRootUser.UUID)
+        self.infectSubtree(newVersionNumber, self.selectSubtree(numberToInfect))
+        
+    def limited_infection_exact(self, newVersionNumber, numberToInfect):
+        '''
+        not finished implementing, not tested
+        '''
+        self.virtualRootUser = User('Virtual Root')
+        self.users[self.virtualRootUser.UUID] = self.virtualRootUser
+        self.spanningIs_coached_by = {} #dict of coacheeID:coachID
+        self.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
+        
+        self.getSpanningTree()
+        self.setSubtreeSizes(self.virtualRootUser.UUID)
+        for s in self.selectSubtree_exact(numberToInfect):
+            self.infectSubtree(newVersionNumber, s)
+        
+
     def getSpanningTree(self):
         '''
         Constructing the spanning tree
@@ -113,6 +155,30 @@ class CoachingGraph(object):
                 
             for coacheeID in self.coaches[currentUserID]:
                 processingQueue.put(coacheeID)
+                
+        '''
+        handling rootless cycles
+        '''
+        unhandled = self.users.keys() - self.spanningIs_coached_by.keys() - {self.virtualRootUser.UUID}
+        while len(unhandled) > 0:           #So long as there are users not in the tree
+            newRoot = list(unhandled)[0]    #semirandomly select a root user from the rootless subgraph
+            processingQueue = Queue()       #build from the root as before
+            processingQueue.put(newRoot)
+            while not processingQueue.empty():
+                currentUserID = processingQueue.get()
+                if currentUserID in self.spanningIs_coached_by.keys():
+                    continue
+                elif currentUserID == newRoot:
+                    self.spanningIs_coached_by[newRoot] = self.virtualRootUser.UUID #attach it to the virtual root
+                    self.spanningCoaches[self.virtualRootUser.UUID].add(newRoot)
+                else:
+                    self.spanningIs_coached_by[currentUserID] = self.is_coached_by[currentUserID][0]
+                    self.spanningCoaches[self.is_coached_by[currentUserID][0]].add(currentUserID)
+                
+                for coacheeID in self.coaches[currentUserID]:
+                    processingQueue.put(coacheeID)
+                    
+            unhandled = self.users.keys() - self.spanningIs_coached_by.keys() - {self.virtualRootUser.UUID}
 
 
     def setSubtreeSizes(self, rootID):
@@ -126,40 +192,13 @@ class CoachingGraph(object):
             size += self.users[childID].subtreeSize
         
         self.users[rootID].subtreeSize = size
-
-    def limited_infection(self, newVersionNumber, numberToInfect):
-        '''
-        This algorithm is based on the intuition that our graph will look a lot like a tree.
-        That is to say there will be relatively few users with more than one coach and even fewer cycles
-        Therefore I have foregone the more robust but heavier algorithms in favour of lighter options.
-        
-        The second intuition is that the best way to partition a connected component for infection in to select an entire
-        subtree of the spanning tree. A heavier option would be to use one of several graph partition algorithms. 
-        The reason I am considering these heavier is because we would have to optimize on two variables: 
-        both on 'niceness' of the partition and on deviation from desired size.
-        
-        Therefore the algorithm is as follows:
-        1. Create a spanning tree of each connected component
-        2. Join the roots of the trees to a virtual root to create a single spanning tree for the graph
-        3. Traverse the tree, assigning to each node the number of nodes in the subtree rooted at that node
-        4. Select the subtree whose size is nearest to the number of desired infections
-        5. Infect that subtree
-        '''
-        self.virtualRootUser = User('Virtual Root')
-        self.users[self.virtualRootUser.UUID] = self.virtualRootUser
-        self.spanningIs_coached_by = {} #dict of coacheeID:coachID
-        self.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
-        
-        self.getSpanningTree()
-        self.setSubtreeSizes(self.virtualRootUser.UUID)
-        self.selectSubtree(numberToInfect)
         
                 
     def selectSubtree(self, targetSize):
         ordered = sorted([(user.UUID, user.subtreeSize) for user in self.users.values()], key=itemgetter(1))
         prevSize = 0
         prevID = None
-        for ID, size in ordered:
+        for ID, size in ordered: #TODO: make this a O(log n) search
             if size < targetSize:
                 prevSize = size
                 prevID = ID
@@ -170,6 +209,16 @@ class CoachingGraph(object):
                     return ID
                 else:
                     return prevID
+                
+    def selectSubtree_exact(self, targetSize):
+        '''
+        not implemented
+        implementation idea: search through the subtrees in largest-to-smallest order, finding the largest tree that 
+        fits in the difference and adding them until you run out of subtrees or hit the target value.
+        This hould work as there are usually many leaves to the spanning tree, but it may not be a very desirable solution.
+        
+        Also we should switch to a O(log n) search rather than the linear search we are currently using in limited infection
+        ''' 
         
     def infectSubtree(self, newVersionNumber, rootID):
         processingQueue = Queue()
