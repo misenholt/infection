@@ -5,6 +5,8 @@ Created on Sep 13, 2016
 '''
 from uuid import uuid4
 from _collections import defaultdict
+from queue import Queue
+from operator import itemgetter
 
 class User(object):
     '''
@@ -14,13 +16,14 @@ class User(object):
     '''
 
 
-    def __init__(self, name):
+    def __init__(self, name, version=None):
         '''
         Constructor
         '''
         self.UUID = uuid4() #each user should have a unique ID
         self.tutors = set()
         self.name = name
+        if version: self.setVersion(version)
         
     def setVersion(self, version):
         self.siteVersion = version
@@ -35,14 +38,14 @@ class CoachingGraph(object):
     
     self.users is a dict of uuid:User
     self.coaches is a dict of uuid_of_coach:{uuids_of_coachees}
-    self.is_coached_by is a dict of uuid_of_coachee:{uuids_of_coaches} 
+    self.is_coached_by is a dict of uuid_of_coachee:[uuids_of_coaches[ 
     '''
 
 
     def __init__(self):
         self.users = {}
         self.coaches = defaultdict(set)
-        self.is_coached_by = defaultdict(set)
+        self.is_coached_by = defaultdict(list)
             
     def addUser(self, newUser):
         if newUser.UUID in self.users.keys():
@@ -59,7 +62,124 @@ class CoachingGraph(object):
             
             
         self.coaches[coachID].add(coacheeID)
-        self.is_coached_by[coacheeID].add(coachID)
+        self.is_coached_by[coacheeID].append(coachID)
+        
+    def total_infection(self, startingUserID, newVersionNumber):
+        infectedUsers = set()
+        processingQueue = Queue()
+        processingQueue.put(startingUserID)
+        while not processingQueue.empty():
+            currentID = processingQueue.get()
+            self.users[currentID].setVersion(newVersionNumber)
+            
+            #treat relations in both directions identically for infection
+            for userID in self.coaches[currentID]:
+                if userID in infectedUsers: continue
+                infectedUsers.add(userID)   #add users to infected list when they go on the queue to avoid duplicates
+                processingQueue.put(userID)
+                
+            for userID in self.is_coached_by[currentID]:
+                if userID in infectedUsers: continue
+                infectedUsers.add(userID)
+                processingQueue.put(userID)
+        
+
+    def getSpanningTree(self):
+        '''
+        Constructing the spanning tree
+        The edges are unweighted, so the algorithm is pretty simple.
+        However the graph is directed and while the direction may not matter for infection, it probably matters for 'niceness'
+        So we are preserving the coach-coachee relationship in the spanning tree, which may not result in a strictly minimal
+        spanning tree
+        I am also joining the roots to the virtual master root as soon as they are identified for convenience
+        '''
+        rootUserIDs = self.users.keys() - self.is_coached_by.keys() - {self.virtualRootUser.UUID} #root users are users that are not coachees
+#         print('RR', rootUserIDs)
+        processingQueue = Queue()
+        for rootUserID in rootUserIDs:
+            processingQueue.put(rootUserID)
+        
+        while not processingQueue.empty():
+            currentUserID = processingQueue.get()
+#             print(currentUserID)
+            if currentUserID in self.spanningIs_coached_by.keys():
+                continue
+            elif currentUserID in rootUserIDs:
+                self.spanningIs_coached_by[currentUserID] = self.virtualRootUser.UUID
+                self.spanningCoaches[self.virtualRootUser.UUID].add(currentUserID)
+            else:
+                self.spanningIs_coached_by[currentUserID] = self.is_coached_by[currentUserID][0]
+                self.spanningCoaches[self.is_coached_by[currentUserID][0]].add(currentUserID)
+                
+            for coacheeID in self.coaches[currentUserID]:
+                processingQueue.put(coacheeID)
+
+
+    def setSubtreeSizes(self, rootID):
+        '''
+        adding subtree sizes
+        this method is called recursively to do a post-order depth-first traversal of the spanning tree
+        '''
+        size = 1
+        for childID in self.spanningCoaches[rootID]:
+            self.setSubtreeSizes(childID)
+            size += self.users[childID].subtreeSize
+        
+        self.users[rootID].subtreeSize = size
+
+    def limited_infection(self, newVersionNumber, numberToInfect):
+        '''
+        This algorithm is based on the intuition that our graph will look a lot like a tree.
+        That is to say there will be relatively few users with more than one coach and even fewer cycles
+        Therefore I have foregone the more robust but heavier algorithms in favour of lighter options.
+        
+        The second intuition is that the best way to partition a connected component for infection in to select an entire
+        subtree of the spanning tree. A heavier option would be to use one of several graph partition algorithms. 
+        The reason I am considering these heavier is because we would have to optimize on two variables: 
+        both on 'niceness' of the partition and on deviation from desired size.
+        
+        Therefore the algorithm is as follows:
+        1. Create a spanning tree of each connected component
+        2. Join the roots of the trees to a virtual root to create a single spanning tree for the graph
+        3. Traverse the tree, assigning to each node the number of nodes in the subtree rooted at that node
+        4. Select the subtree whose size is nearest to the number of desired infections
+        5. Infect that subtree
+        '''
+        self.virtualRootUser = User('Virtual Root')
+        self.users[self.virtualRootUser.UUID] = self.virtualRootUser
+        self.spanningIs_coached_by = {} #dict of coacheeID:coachID
+        self.spanningCoaches = defaultdict(set) #dict of coachID:{coacheeIDs}
+        
+        self.getSpanningTree()
+        self.setSubtreeSizes(self.virtualRootUser.UUID)
+        self.selectSubtree(numberToInfect)
+        
+                
+    def selectSubtree(self, targetSize):
+        ordered = sorted([(user.UUID, user.subtreeSize) for user in self.users.values()], key=itemgetter(1))
+        prevSize = 0
+        prevID = None
+        for ID, size in ordered:
+            if size < targetSize:
+                prevSize = size
+                prevID = ID
+            elif size == targetSize:
+                return ID
+            else:   #prevSize < targetSize < size
+                if targetSize - prevSize > size - targetSize:
+                    return ID
+                else:
+                    return prevID
+        
+    def infectSubtree(self, newVersionNumber, rootID):
+        processingQueue = Queue()
+        processingQueue.put(rootID)
+        while not processingQueue.empty():
+            currentUserID = processingQueue.get()
+            self.users[currentUserID].setVersion(newVersionNumber)
+            for childID in self.spanningCoaches[currentUserID]:
+                processingQueue.put(childID)
+        
     
 class GraphViolation(Exception):
     
