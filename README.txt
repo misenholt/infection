@@ -1,0 +1,3 @@
+There are two files to this project: a model named "user_graph.py" and a test suite named "user_graph_test.py". They are set up to work with the pydev plugin for eclipse, but if you just want to run them independently you should be able to just copy them to your directory and run the test suite. 
+
+If you do this make sure you change the include line in the test suite to point to the model file, for example change the line "from models.user_graph..." to "from user_graph..."
